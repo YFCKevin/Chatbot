@@ -1,0 +1,53 @@
+server:
+  port: 8999
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+spring:
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/chat
+      database: chat
+  ai:
+    openai:
+      api-key: ${api-key}
+      chat:
+        options:
+          model: gpt-4o-mini
+      embedding:
+        options:
+          model: text-embedding-3-small
+    neo4j:
+      authentication:
+        password: password
+        username: neo4j
+      uri: neo4j://localhost:7687
+    vectorstore:
+      neo4j:
+        database-name: neo4j
+        initialize-schema: true
+        embedding-dimension: 1536
+        distance-type: cosine
+        label: Document
+        embedding-property: embedding
+        index-name: spring-ai-document-index
+
+mongo:
+  external:
+    db1:
+      uri: mongodb://104.199.237.118:27017/badmintonPairing
+    db2:
+      uri: mongodb://104.199.237.118:27017/bingBao
+
+logging:
+  level:
+    org:
+      springframework:
+        data:
+          mongodb:
+            core:
+              MongoTemplate: DEBUG
+    org.neo4j: DEBUG
+
