@@ -7,13 +7,10 @@ import com.yfckevin.chatbot.message.MessageService;
 import com.yfckevin.chatbot.message.dto.ChatMemory;
 import com.yfckevin.chatbot.message.dto.MessageText;
 import com.yfckevin.chatbot.utils.ChatUtil;
-import jakarta.annotation.PostConstruct;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.data.redis.core.HashOperations;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,12 +29,14 @@ public class PostController {
     private final VectorStore vectorStore;
     private final MessageService messageService;
     private final ChatClient chatClient;
+    private final ChatUtil chatUtil;
 
-    public PostController(PostService postService, VectorStore vectorStore, MessageService messageService, ChatClient.Builder chatClientBuilder) {
+    public PostController(PostService postService, VectorStore vectorStore, MessageService messageService, ChatClient.Builder chatClientBuilder, ChatUtil chatUtil) {
         this.postService = postService;
         this.vectorStore = vectorStore;
         this.messageService = messageService;
         this.chatClient = chatClientBuilder.build();
+        this.chatUtil = chatUtil;
     }
 
     @GetMapping("/readPost")
@@ -48,7 +47,7 @@ public class PostController {
     @GetMapping("/importPost")
     @Scheduled(cron = "0 0 0 * * ?")
     public ResponseEntity<?> importPost() {
-        vectorStore.write(postService.dailyImportPosts());
+        vectorStore.write(chatUtil.keywordDocuments(postService.dailyImportPosts()));
         return ResponseEntity.ok("ok");
     }
 
@@ -62,13 +61,11 @@ public class PostController {
      */
     @GetMapping("/chat")
     public String postChat(String query, String memberId, String chatChannel) {
-        System.out.println("chatChannel = " + chatChannel);
         // 組裝chatId
         if (StringUtils.isBlank(chatChannel)) {
             chatChannel = ChatUtil.genChannelNum();
         }
         String chatId = BADMINTON_PROJECT_NAME + "_" + memberId + "_" + chatChannel;
-        System.out.println("chatId = " + chatId);
 
         List<ChatMemory> postList = messageService.findPostByType(BADMINTON_POST_METADATA_TYPE);
         final List<MessageText> messagePostList = postList.stream()
