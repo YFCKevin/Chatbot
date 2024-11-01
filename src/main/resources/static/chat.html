@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:x-on="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css"/>
+  <link href="https://fonts.googleapis.com/css?family=Raleway|Ubuntu&display=swap">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body x-data="loadData()" x-init="init()">
+  <div class="fixed bottom-0 right-0 mb-4 mr-4">
+    <button x-on:click="connect($event)" id="open-chat" class="bg-black text-white rounded-full hover:bg-gray-800 transition duration-300 flex items-center justify-center w-16 h-16">
+      <i class="fas fa-comments text-xl"></i>
+    </button>
+  </div>
+  <div id="chat-container" class="hidden fixed bottom-[6rem] right-4 w-96">
+    <div class="bg-white shadow-md rounded-lg max-w-lg w-full">
+      <div class="p-4 border-b bg-black text-white rounded-t-lg flex justify-between items-center">
+        <p class="text-lg font-semibold">羽球小幫手</p>
+        <button x-on:click="disconnect()" id="close-chat" class="text-gray-300 hover:text-gray-400 focus:outline-none focus:text-gray-400">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      <template x-if="memberId != ''">
+        <div id="chatbox" class="p-4 h-80 overflow-y-auto">
+          <!-- Chat messages will be displayed here -->
+          <template x-for="(chat, index) in chatData" :key="index">
+            <div :class="index % 2 === 0 ? 'text-right' : 'text-left'" class="mb-2">
+              <!-- 偶數位置的訊息使用藍色背景 -->
+              <p x-html="chat.text"
+                 :class="index % 2 === 0 ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'"
+                 class="rounded-lg py-2 px-4 inline-block">
+              </p>
+            </div>
+          </template>
+        </div>
+        <div class="p-4 border-t flex">
+          <textarea id="userText" x-model="userText" placeholder="請輸入訊息" class="w-full px-3 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          <button id="sendBtn" x-on:click="sendMessage($event)" class="bg-black text-white px-4 py-2 rounded-r-md hover:bg-blue-600 transition duration-300"><i class="far fa-paper-plane"></i></button>
+        </div>
+      </template>
+      <template x-if="memberId == ''">
+        <div id="chatbox" class="flex justify-center items-center p-4 h-80 overflow-y-auto bg-gray-200">
+          <button id="login-button" class="bg-black text-white py-2 px-4 rounded-md">
+            登入
+          </button>
+        </div>
+      </template>
+    </div>
+  </div>
+  <script src="js/alpine.2.8.2.min.js"></script>
+  <script src="js/jquery.min.js"></script>
+  <script src="js/marked.min.js"></script>
+  <script src="js/sockjs.min.js"></script>
+  <script src="js/stomp.min.js"></script>
+  <script>
+
+    function loadData() {
+      return {
+        chatData: [],
+        connectedMembers: [],
+        channel: "badminton",
+        chatChannel: "",  //C-xn2RFolD
+        memberId: "member010", //member010
+        userText: "",
+
+        init() {
+          let _this = this;
+
+          let isChatboxOpen = false; // 預設關閉
+          $("#chat-container").addClass("hidden");
+
+          // 切換 chatbox
+          function toggleChatbox() {
+            $("#chat-container").toggleClass("hidden");
+            isChatboxOpen = !isChatboxOpen;
+          }
+
+          // 綁定開啟/關閉按鈕事件
+          $("#open-chat").on("click", toggleChatbox);
+          $("#close-chat").on("click", toggleChatbox);
+
+
+          if(this.memberId == "") return;
+
+          let chatroom = localStorage.getItem("chatroom");
+          if (chatroom) {
+              const chatroomArray = JSON.parse(chatroom);
+              const memberId = chatroomArray[0];
+              const chatChannel = chatroomArray[1];
+              console.log("MemberId:", memberId);
+              console.log("chatChannel:", chatChannel);
+              this.chatChannel = chatChannel;
+          }
+
+          let data = {
+            projectName: 'BadmintonPairing',
+            memberId: this.memberId,
+            chatChannel: this.chatChannel
+          };
+          $.ajax({
+            url: "ai/test/chatHistory",
+            type: "post",
+            dataType: "json",
+            data: JSON.stringify(data),
+            contentType: "application/json; charset=utf-8",
+            success: function (response) {
+              _this.chatData = response;
+              _this.chatData = _this.chatData.map(chat => {
+                  return {
+                      ...chat,
+                      text: marked.parse(chat.text) // 將 Markdown 轉換為 HTML
+                  };
+              });
+              console.log(_this.chatData)
+              _this.scrollToBottom();
+            },
+          });
+        },
+        scrollToBottom (){
+          let chatbox = $("#chatbox")[0];
+          $("#chatbox").scrollTop(chatbox.scrollHeight);
+        },
+        connect(event) {
+          let _this = this;
+          if(this.memberId == "") return;
+          if(this.chatChannel == "") {
+            $.ajax({
+              url: "ai/genChatChannel/" + this.memberId,
+              type: "get",
+              dataType: "json",
+              contentType: "application/json; charset=utf-8",
+              success: function (response) {
+                if (response.code == "C000"){
+                  _this.chatChannel = response.data;
+                  localStorage.setItem("chatroom", JSON.stringify([_this.memberId, _this.chatChannel]));
+                  console.log(_this.chatChannel)
+                } else {
+                  return;
+                }
+              },
+            });
+          }
+
+          // 檢查是否已經有連接
+          if (this.connectedMembers[this.memberId]) {
+            console.log('用戶 ' + this.memberId + ' 已經連接，無需重複連接');
+            return; // 已經連接，直接返回
+          }
+
+          if (this.memberId) {
+            var socket = new SockJS('/chatroom');
+            stompClient = Stomp.over(socket);
+
+            stompClient.connect({}, function (frame) {
+              console.log('連接成功: ' + frame);
+              _this.connectedMembers[_this.memberId] = true; // 設定會員為已連接
+              _this.onConnected();
+            }, function (error) {
+              console.error('連接失敗: ' + error);
+            });
+          } else {
+            popHint();
+          }
+          event.preventDefault();
+        },
+        onConnected (){
+          // 訂閱
+          stompClient.subscribe(`/${this.channel}/${this.memberId}/${this.chatChannel}`, this.onMessageReceived.bind(this));
+
+  <!--        stompClient.send("/app/join", {}, JSON.stringify({-->
+  <!--            memberId: this.memberId-->
+  <!--        }))-->
+
+          console.log("已成功訂閱聊天頻道");
+        },
+        sendMessage(event) {
+          if (stompClient) {
+            if (this.userText.trim() === '') return;
+
+            this.chatData.push({ text: this.userText });
+            let chatMessage = {
+              memberId: this.memberId,
+              query: this.userText,
+              chatChannel: this.chatChannel
+            };
+
+            stompClient.send("/ai/chat", {}, JSON.stringify(chatMessage));
+            this.userText = '';
+          }
+          event.preventDefault();
+        },
+        onMessageReceived(payload) {
+          console.log("回覆訊息：" + payload.body)
+          this.chatData.push({ text: marked.parse(payload.body) });
+        },
+        disconnect() {
+          let _this = this;
+          if(this.memberId == "") return;
+          if (stompClient) {
+            stompClient.disconnect(function() {
+              console.log('斷開連接成功');
+              delete _this.connectedMembers[_this.memberId]; // 斷開連接時移除Member
+            });
+          }
+        },
+      }
+    }
+
+  </script>
+</body>
+</html>

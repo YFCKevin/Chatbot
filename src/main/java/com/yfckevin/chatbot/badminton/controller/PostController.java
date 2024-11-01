@@ -2,18 +2,21 @@ package com.yfckevin.chatbot.badminton.controller;
 
 import com.yfckevin.chatbot.Advisors.MyVectorStoreChatMemoryAdvisor;
 import com.yfckevin.chatbot.Advisors.TokenUsageLogAdvisor;
+import com.yfckevin.chatbot.message.dto.ChatMessageDTO;
 import com.yfckevin.chatbot.badminton.service.PostService;
 import com.yfckevin.chatbot.message.MessageService;
 import com.yfckevin.chatbot.message.dto.ChatMemory;
 import com.yfckevin.chatbot.message.dto.MessageText;
 import com.yfckevin.chatbot.utils.ChatUtil;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -30,13 +33,15 @@ public class PostController {
     private final MessageService messageService;
     private final ChatClient chatClient;
     private final ChatUtil chatUtil;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    public PostController(PostService postService, VectorStore vectorStore, MessageService messageService, ChatClient.Builder chatClientBuilder, ChatUtil chatUtil) {
+    public PostController(PostService postService, VectorStore vectorStore, MessageService messageService, ChatClient.Builder chatClientBuilder, ChatUtil chatUtil, SimpMessagingTemplate messagingTemplate) {
         this.postService = postService;
         this.vectorStore = vectorStore;
         this.messageService = messageService;
         this.chatClient = chatClientBuilder.build();
         this.chatUtil = chatUtil;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @GetMapping("/readPost")
@@ -53,18 +58,14 @@ public class PostController {
 
     /**
      * 記憶式詢問零打資訊對話
-     *
-     * @param query
-     * @param memberId
-     * @param chatChannel
-     * @return
+     * @param dto
      */
-    @GetMapping("/chat")
-    public String postChat(String query, String memberId, String chatChannel) {
+    @MessageMapping("/chat")
+    public void postChat(@RequestBody ChatMessageDTO dto) {
+        String chatChannel = dto.getChatChannel();
+        final String memberId = dto.getMemberId();
+        final String query = dto.getQuery();
         // 組裝chatId
-        if (StringUtils.isBlank(chatChannel)) {
-            chatChannel = ChatUtil.genChannelNum();
-        }
         String chatId = BADMINTON_PROJECT_NAME + "_" + memberId + "_" + chatChannel;
 
         List<ChatMemory> postList = messageService.findPostByType(BADMINTON_POST_METADATA_TYPE);
@@ -81,16 +82,18 @@ public class PostController {
         postData = String.format("以下是打羽球的資訊：\n%s", postData);
         System.out.println("零打資料 = " + postData);
 
-        return chatClient.prompt()
-                .advisors(new MyVectorStoreChatMemoryAdvisor(vectorStore, chatId, 20), new TokenUsageLogAdvisor())
+        final String content = chatClient.prompt()
+                .advisors(new MyVectorStoreChatMemoryAdvisor(vectorStore, chatId, 1), new TokenUsageLogAdvisor())
                 .advisors(context -> {
                     context.param("chatId", chatId);
-                    context.param("lastN", 20);
+                    context.param("lastN", 1);
                 })
                 .system(postData)
                 .user(query)
                 .functions("currentDateTime")
                 .call()
                 .content();
+
+        messagingTemplate.convertAndSend("/badminton/" + memberId + "/" + chatChannel, content);
     }
 }

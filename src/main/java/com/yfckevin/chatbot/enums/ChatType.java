@@ -1,14 +1,16 @@
 package com.yfckevin.chatbot.enums;
 
-public enum Project {
-    BadmintonPairing(1,"羽球配對"),BingBao(2,"冰寶"), InkCLoud(3, "一朵墨");
+public enum ChatType {
+    Chat(1,"聊天"),
+    Join(2,"加入"),
+    Leave(3, "離開");
 
-    private Project(){
+    private ChatType(){
     }
 
     private int value;
     private String label;
-    private Project(int value,String label){
+    private ChatType(int value,String label){
         this.value = value;
         this.label = label;
     }
