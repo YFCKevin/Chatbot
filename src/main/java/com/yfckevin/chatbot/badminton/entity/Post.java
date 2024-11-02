@@ -1,12 +1,8 @@
 package com.yfckevin.chatbot.badminton.entity;
 
 import com.yfckevin.chatbot.badminton.enums.AirConditionerType;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
 
-@Document(collection = "post")
 public class Post {
-    @Id
     private String id;
     private String userId;
     private String name;

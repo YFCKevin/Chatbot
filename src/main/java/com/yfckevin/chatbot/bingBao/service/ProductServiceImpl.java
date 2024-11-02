@@ -1,94 +1,124 @@
 package com.yfckevin.chatbot.bingBao.service;
 
-import com.yfckevin.chatbot.bingBao.dto.ProductDTO;
+import com.yfckevin.chatbot.bingBao.entity.Inventory;
 import com.yfckevin.chatbot.bingBao.entity.Product;
-import com.yfckevin.chatbot.entity.Mapping;
-import com.yfckevin.chatbot.repository.MappingRepository;
+import com.yfckevin.chatbot.bingBao.repository.InventoryRepository;
+import com.yfckevin.chatbot.bingBao.repository.ProductRepository;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.embedding.EmbeddingModel;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.yfckevin.chatbot.GlobalConstants.*;
 
 @Service
 public class ProductServiceImpl implements ProductService {
-    private final MongoTemplate bingBaoMongoTemplate;
     private final EmbeddingModel embeddingModel;
-    private final MappingRepository mappingRepository;
+    private final ProductRepository productRepository;
+    private final InventoryRepository inventoryRepository;
 
-    public ProductServiceImpl(@Qualifier("bingBaoMongoTemplate") MongoTemplate bingBaoMongoTemplate, EmbeddingModel embeddingModel, MappingRepository mappingRepository) {
-        this.bingBaoMongoTemplate = bingBaoMongoTemplate;
+    public ProductServiceImpl(EmbeddingModel embeddingModel, ProductRepository productRepository,
+                              InventoryRepository inventoryRepository) {
         this.embeddingModel = embeddingModel;
-        this.mappingRepository = mappingRepository;
+        this.productRepository = productRepository;
+        this.inventoryRepository = inventoryRepository;
     }
 
     @Transactional
     @Override
-    public List<Document> dailyImportProducts() {
+    public List<Document> dailyImportProducts(List<Map<String, String>> productList) {
 
-        final List<String> mappedIdList = mappingRepository.findByDbUri(BING_BAO_MONGO_URI).stream()
-                .map(Mapping::getMappedId).toList();
+        //取出所有要更新的product
+        Set<String> productIds = new HashSet<>();
+        productList.forEach(p -> productIds.add(p.get("id")));
+        List<Product> products = productRepository.findByProductIds(productIds);
+        Map<String, Product> productMapFromDB = products.stream()
+                .collect(Collectors.toMap(Product::getProductId, product -> product, (existing, replacement) -> existing));
 
-//        LocalDateTime now = LocalDateTime.now();
-//        LocalDateTime threeDaysAgo = now.minusDays(2);
-//        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-//        String nowStr = now.format(formatter);
-//        String threeDaysAgoStr = threeDaysAgo.format(formatter);
-        Query query = new Query();
-//        query.addCriteria(Criteria.where("creationDate").gte(threeDaysAgoStr).lte(nowStr));
+        //取出所有的inventory
+        final List<Inventory> inventoryList = inventoryRepository.findAll();
+        final Map<String, List<Inventory>> inventoryMap = inventoryList.stream()
+                .collect(Collectors.groupingBy(Inventory::getProductId));
 
-        final List<Product> filterProductList = bingBaoMongoTemplate.find(query, Product.class)
-                .stream()
-                .filter(product -> !mappedIdList.contains(product.getId()))
-                .limit(20)
-                .toList();
+        List<Product> finalProductList = new ArrayList<>();
+        List<Document> productDocs = new ArrayList<>();
 
-        final List<ProductDTO> productDTOList = filterProductList.stream().map(product -> {
-            ProductDTO dto = new ProductDTO();
-            dto.setId(product.getId());
-            String subCategoryLabel = (product.getSubCategory() != null) ? product.getSubCategory().getLabel() : "";
-            dto.setContent(String.format("食材名稱：%s，食材描述：%s，分類：%s / %s",
-                    product.getName(),
-                    product.getDescription(),
-                    product.getMainCategory().getLabel(),
-                    subCategoryLabel));
-            return dto;
-        }).toList();
+        //新增or更新product
+        if (productMapFromDB.isEmpty()) {
+            productList.forEach(productMap -> {
+                Product newProduct = new Product();
+                constructProduct(newProduct, productMap, productMap.get("id"), inventoryMap);
+                finalProductList.add(newProduct);
+                Document document = createDocument(newProduct);
+                productDocs.add(document);
+            });
+        } else {
+            productList.forEach(productMap -> {
+                final String productId = productMap.get("id");
+                Product product = productMapFromDB.get(productId);
+                if (product != null) {
+                    constructProduct(product, productMap, productId, inventoryMap);
+                    finalProductList.add(product);
+                    Document document = createDocument(product);
+                    productDocs.add(document);
+                } else {
+                    Product newProduct = new Product();
+                    constructProduct(newProduct, productMap, productId, inventoryMap);
+                    finalProductList.add(newProduct);
+                    Document document = createDocument(newProduct);
+                    productDocs.add(document);
+                }
+            });
+        }
 
-        Map<String, Object> metadata = new HashMap<>();
-        metadata.put("type", BING_BAO_PRODUCT_METADATA_TYPE);
-        metadata.put("creation_date", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-        List<Document> productDocs = productDTOList.stream().map(
-                product -> {
-                    metadata.put("product_id", product.getId());
-                    final Document document = new Document(product.getContent(), metadata);
-                    final float[] embedded = embeddingModel.embed(document);
-                    document.setEmbedding(embedded);
-                    return document;
-                }).toList();
-
-        List<Mapping> mappingList = new ArrayList<>();
-        productDTOList.stream().map(ProductDTO::getId).toList()
-                .forEach(productId -> {
-                    Mapping mapping = new Mapping();
-                    mapping.setMappedId(productId);
-                    mapping.setDbUri(BING_BAO_MONGO_URI);
-                    mapping.setCollectionName(BING_BAO_PRODUCT_COLLECTION_NAME);
-                    mappingList.add(mapping);
-                });
-        mappingRepository.saveAll(mappingList);
+        productRepository.saveAll(finalProductList);
 
         return productDocs;
+    }
+
+    @Override
+    public Optional<Product> findByProductId(String productId) {
+        return productRepository.findByProductId(productId);
+    }
+
+    private void constructProduct(Product newProduct, Map<String, String> productMap, String productId, Map<String, List<Inventory>> inventoryMap) {
+        newProduct.setCreator(productMap.getOrDefault("creator", null));
+        newProduct.setDescription(productMap.getOrDefault("description", null));
+        newProduct.setProductId(productId);
+        newProduct.setCoverName(productMap.getOrDefault("coverName", null));
+        newProduct.setAddShoppingList(Boolean.parseBoolean(productMap.getOrDefault("addShoppingList", null)));
+        newProduct.setCreationDate(productMap.getOrDefault("creationDate", null));
+        newProduct.setDeletionDate(productMap.getOrDefault("deletionDate", null));
+        newProduct.setInventoryAlert(productMap.getOrDefault("inventoryAlert", null));
+        newProduct.setMainCategory(productMap.getOrDefault("mainCategory", null));
+        newProduct.setModificationDate(productMap.getOrDefault("modificationDate", null));
+        newProduct.setModifier(productMap.getOrDefault("modifier", null));
+        newProduct.setName(productMap.getOrDefault("name", null));
+        newProduct.setOverdueNotice(productMap.getOrDefault("overdueNotice", null));
+        newProduct.setPackageForm(productMap.getOrDefault("packageForm", null));
+        newProduct.setPackageNumber(productMap.getOrDefault("packageNumber", null));
+        newProduct.setPackageQuantity(productMap.getOrDefault("packageQuantity", null));
+        newProduct.setPackageUnit(productMap.getOrDefault("packageUnit", null));
+        newProduct.setPrice(Integer.parseInt(productMap.getOrDefault("price", "0")));
+        newProduct.setSerialNumber(productMap.getOrDefault("serialNumber", null));
+        newProduct.setSubCategory(productMap.getOrDefault("subCategory", null));
+        newProduct.setInventoryList(inventoryMap.getOrDefault(productId, new ArrayList<>()));
+    }
+
+    private Document createDocument(Product product) {
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("type", BING_BAO_PRODUCT_METADATA_TYPE);
+        metadata.put("import_date", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+        metadata.put("product_id", product.getProductId());
+        // Create the Document and embed it
+        final Document document = new Document(product.getName(), metadata);
+        final float[] embedded = embeddingModel.embed(document);
+        document.setEmbedding(embedded);
+        return document;
     }
 }

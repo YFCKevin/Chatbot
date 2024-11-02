@@ -3,130 +3,93 @@ package com.yfckevin.chatbot.bingBao.service;
 import com.yfckevin.chatbot.bingBao.dto.InventoryDTO;
 import com.yfckevin.chatbot.bingBao.entity.Inventory;
 import com.yfckevin.chatbot.bingBao.entity.Product;
-import com.yfckevin.chatbot.message.MessageRepository;
+import com.yfckevin.chatbot.bingBao.repository.InventoryRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.embedding.EmbeddingModel;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
-
-import static com.yfckevin.chatbot.GlobalConstants.BING_BAO_INVENTORY_METADATA_TYPE;
 
 @Slf4j
 @Service
 public class InventoryServiceImpl implements InventoryService {
-    private final MongoTemplate bingBaoMongoTemplate;
-    private final EmbeddingModel embeddingModel;
-    private final MessageRepository messageRepository;
+    private final InventoryRepository inventoryRepository;
 
-    public InventoryServiceImpl(MongoTemplate bingBaoMongoTemplate, EmbeddingModel embeddingModel,
-                                MessageRepository messageRepository) {
-        this.bingBaoMongoTemplate = bingBaoMongoTemplate;
-        this.embeddingModel = embeddingModel;
-        this.messageRepository = messageRepository;
+    public InventoryServiceImpl(InventoryRepository inventoryRepository) {
+        this.inventoryRepository = inventoryRepository;
     }
 
+    @Transactional
     @Override
-    public List<Document> dailyImportInventories() {
+    public List<Inventory> dailyImportInventories(List<Map<String, String>> invnetoryList) {
 
-        Query query = new Query();
-        query.addCriteria(Criteria.where("deletionDate").ne(null));
+        //取出所有要更新的inventory
+        Set<String> inventoryIds = new HashSet<>();
+        invnetoryList.forEach(im -> inventoryIds.add(im.get("id")));
+        List<Inventory> inventories = inventoryRepository.findByInventoryIds(inventoryIds);
+        Map<String, Inventory> inventoryMapFromDB = inventories.stream()
+                .collect(Collectors.toMap(Inventory::getInventoryId, inventory -> inventory, (existing, replacement) -> existing));
 
-        final List<Inventory> filterInventoryList = bingBaoMongoTemplate.find(query, Inventory.class).stream().limit(20).toList();
-        log.info("總共取得要匯入的庫存食材筆數：{}", filterInventoryList.size());
-
-        final Map<String, List<Product>> productMap = getProductList(filterInventoryList);
-
-        Map<String, Long> itemCountMap = filterInventoryList.stream()
-                .peek(inventory -> {
-                    final Product product = productMap.get(inventory.getProductId()).stream().findFirst().get();
-                    inventory.setName(product.getName());
-                })
-                .collect(Collectors.groupingBy(Inventory::getReceiveItemId, Collectors.counting()));
-
-        Map<String, Map<Long, List<Inventory>>> result = filterInventoryList.stream()
-                .collect(Collectors.groupingBy(
-                        Inventory::getReceiveItemId,
-                        Collectors.groupingBy(
-                                inventory -> itemCountMap.get(inventory.getReceiveItemId()),
-                                Collectors.toList()
-                        )
-                ));
-
-        //排除庫存的食材重複的問題，加入到DTO以前先檢查uniqueReceiveItemIds是否有ReceiveItemId
-        Set<String> uniqueReceiveItemIds = new HashSet<>();
-
-        final List<InventoryDTO> inventoryDTOList = result.entrySet().stream()
-                .flatMap(entry -> entry.getValue().entrySet().stream()
-                        .flatMap(innerEntry -> innerEntry.getValue().stream()
-                                .map(inventory -> {
-                                    boolean isDelete = inventory.getDeletionDate() != null;
-                                    boolean isUsed = inventory.getUsedDate() != null;
-                                    LocalDate expiryDate = LocalDate.parse(inventory.getExpiryDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-                                    boolean isExpired = expiryDate.isBefore(LocalDate.now());
-                                    InventoryDTO dto = new InventoryDTO();
-                                    dto.setId(inventory.getId());
-                                    dto.setContent(String.format("食材名稱：%s，是否被刪除：%s，是否用完：%s，放進冰箱日期：%s，是否過期：%s，有效日期：%s，剩餘數量：%s，存放位置：%s",
-                                            inventory.getName(),
-                                            isDelete,
-                                            isUsed,
-                                            inventory.getStoreDate(),
-                                            isExpired,
-                                            inventory.getExpiryDate(),
-                                            innerEntry.getKey(),
-                                            inventory.getStorePlace().getLabel()
-                                    ));
-
-                                    if (uniqueReceiveItemIds.add(inventory.getReceiveItemId())) {
-                                        return dto;
-                                    } else {
-                                        return null;
-                                    }
-                                })
-                        )
-                )
-                .filter(Objects::nonNull)
-                .toList();
-
-        cleanInventories();
-
-        Map<String, Object> metadata = new HashMap<>();
-        metadata.put("type", BING_BAO_INVENTORY_METADATA_TYPE);
-        metadata.put("creation_date", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-        List<Document> inventoryDocs = inventoryDTOList.stream().map(
-                inventory -> {
-                    metadata.put("inventory_id", inventory.getId());
-                    final Document document = new Document(inventory.getContent(), metadata);
-                    final float[] embedded = embeddingModel.embed(document);
-                    document.setEmbedding(embedded);
-                    return document;
-                }).toList();
-
-        return inventoryDocs;
-    }
-
-    //取得庫存中的食材資料，用來取得食材姓名用
-    private Map<String, List<Product>> getProductList(List<Inventory> filterInventoryList) {
-        final Set<String> productIdSet = filterInventoryList.stream().map(Inventory::getProductId).collect(Collectors.toSet());
-        Query productQuery = new Query();
-        if (!productIdSet.isEmpty()) {
-            productQuery.addCriteria(Criteria.where("_id").in(productIdSet));
+        //新增or更新inventory
+        List<Inventory> finalInventoryList = new ArrayList<>();
+        if (inventoryMapFromDB.isEmpty()) {
+            invnetoryList.forEach(inventoryMap -> {
+                Inventory newInventory = new Inventory();
+                constructInventory(newInventory, inventoryMap, inventoryMap.get("id"));
+                finalInventoryList.add(newInventory);
+            });
+        } else {
+            invnetoryList.forEach(inventoryMap -> {
+                final String inventoryId = inventoryMap.get("id");
+                Inventory inventory = inventoryMapFromDB.get(inventoryId);
+                if (inventory != null) {
+                    constructInventory(inventory, inventoryMap, inventoryId);
+                    finalInventoryList.add(inventory);
+                } else {
+                    Inventory newInventory = new Inventory();
+                    constructInventory(newInventory, inventoryMap, inventoryId);
+                    finalInventoryList.add(newInventory);
+                }
+            });
         }
-        return bingBaoMongoTemplate.find(productQuery, Product.class)
-                .stream()
-                .collect(Collectors.groupingBy(Product::getId));
+        inventoryRepository.saveAll(finalInventoryList);
+        //更新其餘inventory的validStr狀態
+        return updateExpireStatus();
     }
 
-    private void cleanInventories() {
-        final int deleted = messageRepository.deleteAllBingBaoInventories(BING_BAO_INVENTORY_METADATA_TYPE);
-        log.info("刪除筆數：{}", deleted);
+    private static void constructInventory(Inventory newInventory, Map<String, String> inventoryMap, String inventoryId) {
+        newInventory.setStorePlace(inventoryMap.getOrDefault("storePlace", null));
+        newInventory.setUsedDate(inventoryMap.getOrDefault("usedDate", null));
+        newInventory.setDeletionDate(inventoryMap.getOrDefault("deletionDate", null));
+
+        final String expiryDate = inventoryMap.getOrDefault("expiryDate", null);
+        String validStr = "在有效期限內"; // 預設為在有效期限內
+        if (expiryDate != null) {
+            LocalDate expiry = LocalDate.parse(expiryDate);
+            boolean isValid = expiry.isAfter(LocalDate.now()) || expiry.isEqual(LocalDate.now());
+            validStr = isValid ? "在有效期限內" : "已過期";
+        }
+        newInventory.setValidStr(validStr);
+        newInventory.setProductId(inventoryMap.getOrDefault("productId", null));
+        newInventory.setCreator(inventoryMap.getOrDefault("creator", null));
+        newInventory.setCreationDate(inventoryMap.getOrDefault("creationDate", null));
+        newInventory.setInventoryId(inventoryId); // 使用 id 作為新 inventory 的 ID
+        newInventory.setExpiryDate(expiryDate);
+        newInventory.setSupplierId(inventoryMap.getOrDefault("supplierId", null));
+    }
+
+    private List<Inventory> updateExpireStatus (){
+        List<Inventory> inventoryList = inventoryRepository.findByValidStr("在有效期限內");
+        System.out.println("inventoryList = " + inventoryList);
+        inventoryList = inventoryList.stream()
+                .peek(inventory -> {
+                    LocalDate expiry = LocalDate.parse(inventory.getExpiryDate());
+                    boolean isValid = expiry.isAfter(LocalDate.now()) || expiry.isEqual(LocalDate.now());
+                    String validStr = isValid ? "在有效期限內" : "已過期";
+                    inventory.setValidStr(validStr);
+                }).toList();
+        return inventoryRepository.saveAll(inventoryList);
     }
 }

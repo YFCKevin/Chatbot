@@ -1,21 +1,24 @@
 package com.yfckevin.chatbot.bingBao.entity;
 
-import com.yfckevin.chatbot.bingBao.enums.MainCategory;
-import com.yfckevin.chatbot.bingBao.enums.SubCategory;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.neo4j.core.schema.*;
 
-@Document(collection = "product")
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+
+@Node(labels = "Product")
 public class Product {
     @Id
-    private String id;
+    @GeneratedValue
+    private Long id;
+    private String productId;
     private String serialNumber; //序號
     private String name;    //名稱
     private String description; //食材描述
     private String coverName;   //圖片檔名
     private int price;
-    private MainCategory mainCategory;  //食材種類 (水果、青菜、海鮮、藥品等等)
-    private SubCategory subCategory;    //食材副總類
+    private String mainCategory;  //食材種類 (水果、青菜、海鮮、藥品等等)
+    private String subCategory;    //食材副總類
     private String packageForm;    //包裝形式 (完整包裝、散裝)
     private String packageUnit;    //包裝單位 (包、瓶、個等等)
     private String packageQuantity;     //包裝數量
@@ -28,13 +31,23 @@ public class Product {
     private String deletionDate;
     private String creator;
     private String modifier;
+    @Relationship(type = "HAS_INVENTORY", direction = Relationship.Direction.OUTGOING)
+    private List<Inventory> inventoryList;
 
-    public String getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(Long id) {
         this.id = id;
+    }
+
+    public List<Inventory> getInventoryList() {
+        return inventoryList;
+    }
+
+    public void setInventoryList(List<Inventory> inventoryList) {
+        this.inventoryList = inventoryList;
     }
 
     public String getSerialNumber() {
@@ -77,19 +90,19 @@ public class Product {
         this.price = price;
     }
 
-    public MainCategory getMainCategory() {
+    public String getMainCategory() {
         return mainCategory;
     }
 
-    public void setMainCategory(MainCategory mainCategory) {
+    public void setMainCategory(String mainCategory) {
         this.mainCategory = mainCategory;
     }
 
-    public SubCategory getSubCategory() {
+    public String getSubCategory() {
         return subCategory;
     }
 
-    public void setSubCategory(SubCategory subCategory) {
+    public void setSubCategory(String subCategory) {
         this.subCategory = subCategory;
     }
 
@@ -189,17 +202,26 @@ public class Product {
         this.modifier = modifier;
     }
 
+    public String getProductId() {
+        return productId;
+    }
+
+    public void setProductId(String productId) {
+        this.productId = productId;
+    }
+
     @Override
     public String toString() {
         return "Product{" +
-                "id='" + id + '\'' +
+                "id=" + id +
+                ", productId='" + productId + '\'' +
                 ", serialNumber='" + serialNumber + '\'' +
                 ", name='" + name + '\'' +
                 ", description='" + description + '\'' +
                 ", coverName='" + coverName + '\'' +
                 ", price=" + price +
-                ", mainCategory=" + mainCategory +
-                ", subCategory=" + subCategory +
+                ", mainCategory='" + mainCategory + '\'' +
+                ", subCategory='" + subCategory + '\'' +
                 ", packageForm='" + packageForm + '\'' +
                 ", packageUnit='" + packageUnit + '\'' +
                 ", packageQuantity='" + packageQuantity + '\'' +
@@ -212,6 +234,7 @@ public class Product {
                 ", deletionDate='" + deletionDate + '\'' +
                 ", creator='" + creator + '\'' +
                 ", modifier='" + modifier + '\'' +
+                ", inventoryList=" + inventoryList +
                 '}';
     }
 }

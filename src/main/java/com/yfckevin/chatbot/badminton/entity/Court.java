@@ -2,12 +2,8 @@ package com.yfckevin.chatbot.badminton.entity;
 
 import com.yfckevin.chatbot.badminton.enums.CityType;
 import com.yfckevin.chatbot.badminton.enums.DistrictType;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
 
-@Document(collection = "court")
 public class Court {
-    @Id
     private String id;
     private String name;    //球館名稱
     private String address; //地理位置地址
