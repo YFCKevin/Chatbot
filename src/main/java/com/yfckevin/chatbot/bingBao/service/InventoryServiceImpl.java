@@ -1,6 +1,5 @@
 package com.yfckevin.chatbot.bingBao.service;
 
-import com.yfckevin.chatbot.bingBao.dto.InventoryDTO;
 import com.yfckevin.chatbot.bingBao.entity.Inventory;
 import com.yfckevin.chatbot.bingBao.entity.Product;
 import com.yfckevin.chatbot.bingBao.repository.InventoryRepository;

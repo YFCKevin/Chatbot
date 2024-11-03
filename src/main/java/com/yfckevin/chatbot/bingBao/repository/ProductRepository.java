@@ -12,8 +12,5 @@ import java.util.Set;
 public interface ProductRepository extends Neo4jRepository<Product, Long> {
     @Query("MATCH (p:Product) WHERE p.productIds IN $productIds RETURN p")
     List<Product> findByProductIds(@Param(value = "productIds") Set<String> productIds);
-    @Query("MATCH (p:Product) WHERE p.productId = $productId " +
-            "OPTIONAL MATCH (p)-[:HAS_INVENTORY]->(i:Inventory) " +
-            "RETURN p, collect(i) as inventoryList")
     Optional<Product> findByProductId(@Param(value = "productId") String productId);
 }
