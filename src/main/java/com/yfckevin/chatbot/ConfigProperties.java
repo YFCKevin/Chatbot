@@ -17,6 +17,39 @@ public class ConfigProperties {
     private String redisPassword;
     @Value("${spring.redis.port}")
     private int redisPort;
+    @Value("${config.globalDomain}")
+    public String globalDomain;
+    @Value("${spring.security.oauth2.client.registration.line.client-id}")
+    public String clientId;
+
+    @Value("${spring.security.oauth2.client.registration.line.client-secret}")
+    public String clientSecret;
+
+    @Value("${spring.security.oauth2.client.provider.line.token-uri}")
+    public String tokenUri;
+
+    @Value("${spring.security.oauth2.client.provider.line.user-info-uri}")
+    public String userInfoUri;
+
+    public String getClientId() {
+        return clientId;
+    }
+
+    public String getClientSecret() {
+        return clientSecret;
+    }
+
+    public String getTokenUri() {
+        return tokenUri;
+    }
+
+    public String getUserInfoUri() {
+        return userInfoUri;
+    }
+
+    public String getGlobalDomain() {
+        return globalDomain;
+    }
 
     public int getRedisPort() {
         return redisPort;
