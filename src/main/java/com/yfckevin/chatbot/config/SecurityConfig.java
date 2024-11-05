@@ -31,8 +31,8 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable());
 
         http.logout()
-                .logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
-                .logoutSuccessUrl("/chat.html")
+//                .logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
+//                .logoutSuccessUrl("/chat.html")
                 .and().oauth2Login().userInfoEndpoint()
                 .userService(oauthUserService)
                 .and()

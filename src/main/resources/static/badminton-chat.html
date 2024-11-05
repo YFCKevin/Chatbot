@@ -43,11 +43,11 @@
       </template>
       <template x-if="memberId == undefined">
         <div id="chatbox" class="flex justify-center items-center p-4 h-80 overflow-y-auto bg-gray-200">
-          <a href="oauth2/authorization/google" class="bg-black text-white py-2 px-4 rounded-md">
+          <a href="login?type=google&project=badminton" class="bg-black text-white py-2 px-4 rounded-md">
             Google登入
           </a>
           <br>
-          <a href="oauth2/authorization/line" class="bg-black text-white py-2 px-4 rounded-md">
+          <a href="login?type=line&project=badminton" class="bg-black text-white py-2 px-4 rounded-md">
             Line登入
           </a>
         </div>
@@ -161,7 +161,7 @@
               chatChannel: this.chatChannel
             };
 
-            stompClient.send("/ai/chat", {}, JSON.stringify(chatMessage));
+            stompClient.send("/ai/badminton/chat", {}, JSON.stringify(chatMessage));
             this.userText = '';
           }
           event.preventDefault();

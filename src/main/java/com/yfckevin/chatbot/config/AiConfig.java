@@ -12,7 +12,7 @@ public class AiConfig {
     public FunctionCallback getCurrentDateTime (){
         return FunctionCallbackWrapper.builder(new CurrectDateTimeFunction())
                 .withName("currentDateTime")
-                .withDescription("取得日期時間")
+                .withDescription("今天日期時間")
                 .withResponseConverter((response) -> response.currDateTime().toString())
                 .build();
     }

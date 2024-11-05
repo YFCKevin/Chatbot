@@ -10,7 +10,6 @@ import com.yfckevin.chatbot.utils.ChatUtil;
 import jakarta.annotation.PostConstruct;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.InMemoryChatMemory;
 import org.springframework.ai.document.Document;
@@ -20,6 +19,8 @@ import org.springframework.ai.vectorstore.filter.Filter;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.*;
 
@@ -34,22 +35,23 @@ public class ProductController {
     private final ProductService productService;
     private final VectorStore vectorStore;
     private final ChatClient chatClient;
-    private ChatMemory chatMemory = new InMemoryChatMemory();
     private final RedisTemplate<String, String> redisTemplate;
     private HashOperations<String, String, String> hashOperations;
     private final ChatUtil chatUtil;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @PostConstruct
     private void init() {
         hashOperations = redisTemplate.opsForHash();
     }
 
-    public ProductController(ProductService productService, VectorStore vectorStore, ChatClient.Builder chatClientBuilder, RedisTemplate<String, String> redisTemplate, ChatUtil chatUtil) {
+    public ProductController(ProductService productService, VectorStore vectorStore, ChatClient.Builder chatClientBuilder, RedisTemplate<String, String> redisTemplate, ChatUtil chatUtil, SimpMessagingTemplate messagingTemplate) {
         this.productService = productService;
         this.vectorStore = vectorStore;
         this.chatClient = chatClientBuilder.build();
         this.redisTemplate = redisTemplate;
         this.chatUtil = chatUtil;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @GetMapping("/readProduct")
@@ -68,8 +70,8 @@ public class ProductController {
         return ResponseEntity.ok(documents);
     }
 
-    @PostMapping("/chatSearch")
-    public ResponseEntity<?> chatSearch(@RequestBody ChatMessageDTO dto) {
+    @MessageMapping("/bingBao/chat")
+    public void chatSearch(@RequestBody ChatMessageDTO dto) {
         final String chatChannel = dto.getChatChannel();
         final String memberId = dto.getMemberId();
         final String query = dto.getQuery();
@@ -97,7 +99,7 @@ public class ProductController {
                 .toList();
         System.out.println("distance優化過的資料：" + results);
 
-        if (results.size() == 0) return ResponseEntity.ok("查無資料");
+        if (results.size() == 0) return;
 
         StringBuilder productInfos = new StringBuilder();
         for (Document document : results) {
@@ -129,10 +131,7 @@ public class ProductController {
                 .call()
                 .content();
 
-        resultStatus.setCode("C000");
-        resultStatus.setMessage("成功");
-        resultStatus.setData(content);
-        return ResponseEntity.ok(resultStatus);
+        messagingTemplate.convertAndSend("/bingBao/" + memberId + "/" + chatChannel, content);
     }
 
     private String constructInventoryInfo(List<Inventory> inventoryList) {

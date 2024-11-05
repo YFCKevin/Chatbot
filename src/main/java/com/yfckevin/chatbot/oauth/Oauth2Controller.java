@@ -3,6 +3,7 @@ package com.yfckevin.chatbot.oauth;
 import com.yfckevin.chatbot.ConfigProperties;
 import com.yfckevin.chatbot.entity.Member;
 import com.yfckevin.chatbot.service.MemberService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.*;
 import org.springframework.stereotype.Controller;
@@ -84,6 +85,33 @@ public class Oauth2Controller {
             member = memberOpt.get();
         }
         session.setAttribute("member", member);
-        return "redirect:" + configProperties.getGlobalDomain() + "chat.html";
+        return "redirect:" + configProperties.getGlobalDomain() + "badminton-chat.html";
+    }
+
+
+    /**
+     * 登入導向的先行判定，並放入到session
+     * @param type google or line
+     * @param project 專案名稱
+     * @param request
+     * @return
+     */
+    @GetMapping("/login")
+    public String login(@RequestParam("type") String type, @RequestParam("project") String project, HttpServletRequest request) {
+        System.out.println("project = " + project);
+        // 將 projectName 存入 session
+        HttpSession session = request.getSession();
+        session.setAttribute("project", project);
+
+        switch (type) {
+            case "google" -> {
+                return "redirect:/oauth2/authorization/google?project=" + project;
+            }
+            case "line" -> {
+                return "redirect:/oauth2/authorization/line?project=" + project;
+            }
+        }
+
+        return "";
     }
 }

@@ -60,7 +60,7 @@ public class PostController {
      * 記憶式詢問零打資訊對話
      * @param dto
      */
-    @MessageMapping("/chat")
+    @MessageMapping("/badminton/chat")
     public void postChat(@RequestBody ChatMessageDTO dto) {
         String chatChannel = dto.getChatChannel();
         final String memberId = dto.getMemberId();
@@ -68,7 +68,7 @@ public class PostController {
         // 組裝chatId
         String chatId = BADMINTON_PROJECT_NAME + "_" + memberId + "_" + chatChannel;
 
-        List<ChatMemory> postList = messageService.findPostByType(BADMINTON_POST_METADATA_TYPE);
+        List<ChatMemory> postList = messageService.findPostByType(BADMINTON_POST_METADATA_TYPE).stream().limit(1).toList();
         final List<MessageText> messagePostList = postList.stream()
                 .map(chatMemory -> {
                     MessageText post = new MessageText();

@@ -43,7 +43,12 @@ public class OauthLoginSuccessHandler implements AuthenticationSuccessHandler {
         memberCookie.setPath("/");
         response.addCookie(memberCookie);
 
-        response.sendRedirect(configProperties.getGlobalDomain() + "chat.html");
+        String projectName = (String) request.getSession().getAttribute("project");
+        System.out.println("projectName = " + projectName);
+        switch (projectName) {
+            case "badminton" -> response.sendRedirect(configProperties.getGlobalDomain() + "badminton-chat.html");
+            case "bingBao" -> response.sendRedirect(configProperties.getGlobalDomain() + "bing-bao-chat.html");
+        }
     }
 
 }
