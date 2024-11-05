@@ -1,19 +1,20 @@
 package com.yfckevin.chatbot.message;
 
-import com.yfckevin.chatbot.Advisors.MyVectorStoreChatMemoryAdvisor;
-import com.yfckevin.chatbot.Advisors.TokenUsageLogAdvisor;
+import com.yfckevin.chatbot.entity.Chat;
 import com.yfckevin.chatbot.exception.ResultStatus;
 import com.yfckevin.chatbot.message.dto.ChatHistoryDTO;
 import com.yfckevin.chatbot.message.dto.ChatMemory;
 import com.yfckevin.chatbot.utils.ChatUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @RequestMapping("/ai")
@@ -21,9 +22,13 @@ import java.util.List;
 public class ChatController {
 
     private final MessageService messageService;
+    private final ChatService chatService;
+    private final SimpleDateFormat sdf;
 
-    public ChatController(MessageService messageService) {
+    public ChatController(MessageService messageService, ChatService chatService, @Qualifier("sdf") SimpleDateFormat sdf) {
         this.messageService = messageService;
+        this.chatService = chatService;
+        this.sdf = sdf;
     }
 
     /**
@@ -45,16 +50,29 @@ public class ChatController {
      * @param memberId
      * @return
      */
-    @GetMapping("/genChatChannel/{memberId}")
-    public ResponseEntity<?> genChatChannel (@PathVariable String memberId){
+    @GetMapping("/getChatChannel/{projectName}/{memberId}")
+    public ResponseEntity<?> getChatChannel (@PathVariable String projectName, @PathVariable String memberId){
         ResultStatus resultStatus = new ResultStatus();
         if (StringUtils.isBlank(memberId)) {
             resultStatus.setCode("C001");
             resultStatus.setMessage("查無會員");
         } else {
+            String chatChannel;
+            Optional<Chat> opt = chatService.findFirstByMemberIdAndProjectNameOrderByCreationDateDesc(memberId, projectName);
+            if (opt.isEmpty()) {
+                chatChannel = ChatUtil.genChannelNum();
+            } else {
+                chatChannel = opt.get().getChatChannel();
+            }
+            Chat chat = new Chat();
+            chat.setChatChannel(chatChannel);
+            chat.setMemberId(memberId);
+            chat.setProjectName(projectName);
+            chat.setCreationDate(sdf.format(new Date()));
+            chatService.save(chat);
             resultStatus.setCode("C000");
             resultStatus.setMessage("成功");
-            resultStatus.setData(ChatUtil.genChannelNum());
+            resultStatus.setData(chatChannel);
         }
         return ResponseEntity.ok(resultStatus);
     }

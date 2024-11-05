@@ -1,8 +1,7 @@
 package com.yfckevin.chatbot.bingBao.controller;
 
-import com.yfckevin.chatbot.Advisors.TokenUsageLogAdvisor;
+import com.yfckevin.chatbot.advisors.TokenUsageLogAdvisor;
 import com.yfckevin.chatbot.bingBao.entity.Inventory;
-import com.yfckevin.chatbot.bingBao.entity.Product;
 import com.yfckevin.chatbot.bingBao.service.ProductService;
 import com.yfckevin.chatbot.exception.ResultStatus;
 import com.yfckevin.chatbot.message.dto.ChatMessageDTO;

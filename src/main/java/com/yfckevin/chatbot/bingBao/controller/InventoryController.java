@@ -1,19 +1,16 @@
 package com.yfckevin.chatbot.bingBao.controller;
 
-import com.yfckevin.chatbot.Advisors.MyVectorStoreChatMemoryAdvisor;
-import com.yfckevin.chatbot.Advisors.TokenUsageLogAdvisor;
+import com.yfckevin.chatbot.advisors.MyVectorStoreChatMemoryAdvisor;
+import com.yfckevin.chatbot.advisors.TokenUsageLogAdvisor;
 import com.yfckevin.chatbot.bingBao.entity.Inventory;
 import com.yfckevin.chatbot.bingBao.service.InventoryService;
 import com.yfckevin.chatbot.message.dto.ChatMemory;
 import com.yfckevin.chatbot.message.MessageService;
 import com.yfckevin.chatbot.message.dto.ChatMessageDTO;
 import com.yfckevin.chatbot.message.dto.MessageText;
-import com.yfckevin.chatbot.utils.ChatUtil;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;

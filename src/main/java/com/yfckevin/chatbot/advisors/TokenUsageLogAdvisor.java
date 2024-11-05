@@ -1,4 +1,4 @@
-package com.yfckevin.chatbot.Advisors;
+package com.yfckevin.chatbot.advisors;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.AdvisedRequest;

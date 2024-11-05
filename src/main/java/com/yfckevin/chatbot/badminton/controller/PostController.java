@@ -1,7 +1,7 @@
 package com.yfckevin.chatbot.badminton.controller;
 
-import com.yfckevin.chatbot.Advisors.MyVectorStoreChatMemoryAdvisor;
-import com.yfckevin.chatbot.Advisors.TokenUsageLogAdvisor;
+import com.yfckevin.chatbot.advisors.MyVectorStoreChatMemoryAdvisor;
+import com.yfckevin.chatbot.advisors.TokenUsageLogAdvisor;
 import com.yfckevin.chatbot.message.dto.ChatMessageDTO;
 import com.yfckevin.chatbot.badminton.service.PostService;
 import com.yfckevin.chatbot.message.MessageService;
