@@ -64,7 +64,6 @@ public class PostServiceImpl implements PostService{
                 .stream()
                 .filter(post -> !mappedIdList.contains(post.getId()))
                 .map(post -> constructDateTime(post, courtNameAndAddressMap))
-                .limit(30)
                 .toList();
 
         final List<PostDTO> productDTOList = filterPostList.stream().map(post -> {

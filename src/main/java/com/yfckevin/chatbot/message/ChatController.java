@@ -61,15 +61,15 @@ public class ChatController {
             Optional<Chat> opt = chatService.findFirstByMemberIdAndProjectNameOrderByCreationDateDesc(memberId, projectName);
             if (opt.isEmpty()) {
                 chatChannel = ChatUtil.genChannelNum();
+                Chat chat = new Chat();
+                chat.setChatChannel(chatChannel);
+                chat.setMemberId(memberId);
+                chat.setProjectName(projectName);
+                chat.setCreationDate(sdf.format(new Date()));
+                chatService.save(chat);
             } else {
                 chatChannel = opt.get().getChatChannel();
             }
-            Chat chat = new Chat();
-            chat.setChatChannel(chatChannel);
-            chat.setMemberId(memberId);
-            chat.setProjectName(projectName);
-            chat.setCreationDate(sdf.format(new Date()));
-            chatService.save(chat);
             resultStatus.setCode("C000");
             resultStatus.setMessage("成功");
             resultStatus.setData(chatChannel);

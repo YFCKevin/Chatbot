@@ -10,15 +10,14 @@ import com.yfckevin.chatbot.message.dto.ChatMessageDTO;
 import com.yfckevin.chatbot.message.dto.MessageText;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -57,7 +56,7 @@ public class InventoryController {
     }
 
     @GetMapping("/importInventory")
-//    @Scheduled(cron = "0 0 */4 * * ?")
+    @Scheduled(cron = "0 0 0 * * ?")
     public ResponseEntity<?> importInventory() {
         final List<Inventory> documents = inventoryService.dailyImportInventories(fetchRefreshData());
         cleanRedisIndex();
@@ -68,7 +67,7 @@ public class InventoryController {
      * 記憶式詢問食材庫存對話
      * @return
      */
-    @GetMapping("/chat")
+    @PostMapping("/chat")
     public String inventorySearch(@RequestBody ChatMessageDTO dto) {
         final String query = dto.getQuery();
         final String memberId = dto.getMemberId();
@@ -88,6 +87,9 @@ public class InventoryController {
         String inventoryData = messageInventoryList.stream()
                 .map(MessageText::getText)
                 .collect(Collectors.joining("\n"));
+
+        if (StringUtils.isBlank(inventoryData)) return "查無資料";
+
         inventoryData = String.format("以下是食材庫存資料：\n%s", inventoryData);
         System.out.println("庫存資料 = " + inventoryData);
 

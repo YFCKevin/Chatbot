@@ -1,5 +1,6 @@
 package com.yfckevin.chatbot.bingBao.controller;
 
+import com.yfckevin.chatbot.advisors.MyVectorStoreChatMemoryAdvisor;
 import com.yfckevin.chatbot.advisors.TokenUsageLogAdvisor;
 import com.yfckevin.chatbot.bingBao.entity.Inventory;
 import com.yfckevin.chatbot.bingBao.service.ProductService;
@@ -19,6 +20,7 @@ import org.springframework.ai.vectorstore.filter.Filter;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -58,7 +60,7 @@ public class ProductController {
     }
 
     @GetMapping("/importProduct")
-//    @Scheduled(cron = "0 0 */4 * * ?")
+    @Scheduled(cron = "0 30 0 * * ?")
     public ResponseEntity<?> importProduct() {
         final List<Document> documents = productService.dailyImportProducts(fetchRefreshData());
         vectorStore.write(documents);
@@ -95,6 +97,8 @@ public class ProductController {
                 .toList();
         System.out.println("distance優化過的資料：" + results);
 
+        if (results.size() == 0) return ResponseEntity.ok("查無資料");
+
         StringBuilder productInfos = new StringBuilder();
         for (Document document : results) {
             final String productId = (String) document.getMetadata().get("product_id");
@@ -114,13 +118,14 @@ public class ProductController {
         String chatId = BING_BAO_PROJECT_NAME + "_" + memberId + "_" + chatChannel;
 
         final String content = chatClient.prompt()
-                .advisors(new MessageChatMemoryAdvisor(chatMemory, chatId, 20), new TokenUsageLogAdvisor())
+                .advisors(new MyVectorStoreChatMemoryAdvisor(vectorStore, chatId, 20), new TokenUsageLogAdvisor())
                 .advisors(context -> {
                     context.param("chatId", chatId);
                     context.param("lastN", 20);
                 })
-                .user(query)
                 .system(productInfos.toString().trim())
+                .user(query)
+                .functions("currentDateTime")
                 .call()
                 .content();
 
