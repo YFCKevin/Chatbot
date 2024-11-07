@@ -1,0 +1,93 @@
+server:
+  port: 8999
+  servlet:
+    contextPath: /chatbot
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+spring:
+  resources:
+    static-locations: file:/opt/chatbot/static/
+  data:
+    mongodb:
+      uri: mongodb://${mongo-username}:${mongo-password}@localhost:27017/chat
+      database: chat
+    neo4j:
+      uri: neo4j://localhost:7687
+      authentication:
+        username: ${neo4j-username}
+        password: ${neo4j-password}
+  redis:
+    host: 127.0.0.1       # Redis 服務器的主機名或 IP 地址
+    port: 6379                 # Redis 服務器的端口號
+    password: ${redis-password}         # Redis 的密碼（如果有設定）
+    ssl: false                 # 是否啟用 SSL（預設為 false）
+  ai:
+    openai:
+      api-key: ${api-key}
+      chat:
+        options:
+          model: gpt-4o-mini
+      embedding:
+        options:
+          model: text-embedding-3-small
+    vectorstore:
+      neo4j:
+        database-name: neo4j
+        initialize-schema: true
+        embedding-dimension: 1536
+        distance-type: cosine
+        label: Document
+        embedding-property: embedding
+        index-name: spring-ai-document-index
+  security:
+    user:
+      name: yifan
+      password: password
+    oauth2:
+      client:
+        registration:
+          google:
+            redirect-uri: https://gurula.cc/chatbot/login/oauth2/code/google
+            client-id: ${google-client-id}
+            client-secret: ${google-client-secret}
+            scope:
+              - email
+              - profile
+          line:
+            client-id: ${line-client-id}
+            client-secret: ${line-client-secret}
+            redirect-uri: https://gurula.cc/chatbot/callback
+            scope:
+              - openid
+              - profile
+            authorization-grant-type: authorization_code
+        provider:
+          line:
+            authorization-uri: https://access.line.me/oauth2/v2.1/authorize
+            token-uri: https://api.line.me/oauth2/v2.1/token
+            user-info-uri: https://api.line.me/v2/profile
+            user-name-attribute: userId
+
+mongo:
+  external:
+    db1:
+      uri: mongodb://${mongo-username}:${mongo-password}@localhost:27017/badmintonPairing
+    db2:
+      uri: mongodb://${mongo-username}:${mongo-password}@localhost:27017/bingBao
+
+logging:
+  level:
+    org:
+      springframework:
+        data:
+          mongodb:
+            core:
+              MongoTemplate: DEBUG
+    org.neo4j: ERROR
+
+config:
+  badmintonDomain: https://gurula.cc/badminton/
+  globalDomain: https://gurula.cc/chatbot/
+
