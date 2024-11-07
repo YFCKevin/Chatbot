@@ -8,6 +8,7 @@ import com.yfckevin.chatbot.message.MessageService;
 import com.yfckevin.chatbot.message.dto.ChatMemory;
 import com.yfckevin.chatbot.message.dto.MessageText;
 import com.yfckevin.chatbot.utils.ChatUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -25,6 +26,7 @@ import java.util.stream.Collectors;
 
 import static com.yfckevin.chatbot.GlobalConstants.*;
 
+@Slf4j
 @RestController
 @RequestMapping("/ai/badminton/post")
 public class PostController {
@@ -68,7 +70,7 @@ public class PostController {
         // 組裝chatId
         String chatId = BADMINTON_PROJECT_NAME + "_" + memberId + "_" + chatChannel;
 
-        List<ChatMemory> postList = messageService.findPostByType(BADMINTON_POST_METADATA_TYPE).stream().limit(1).toList();
+        List<ChatMemory> postList = messageService.findPostByType(BADMINTON_POST_METADATA_TYPE);
         final List<MessageText> messagePostList = postList.stream()
                 .map(chatMemory -> {
                     MessageText post = new MessageText();
@@ -80,7 +82,7 @@ public class PostController {
                 .map(MessageText::getText)
                 .collect(Collectors.joining("\n"));
         postData = String.format("以下是打羽球的資訊：\n%s", postData);
-        System.out.println("零打資料 = " + postData);
+        log.info("零打資料 = " + postData);
 
         final String content = chatClient.prompt()
                 .advisors(new MyVectorStoreChatMemoryAdvisor(vectorStore, chatId, 1), new TokenUsageLogAdvisor())

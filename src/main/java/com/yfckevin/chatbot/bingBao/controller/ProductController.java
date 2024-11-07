@@ -1,5 +1,7 @@
 package com.yfckevin.chatbot.bingBao.controller;
 
+import com.huaban.analysis.jieba.JiebaSegmenter;
+import com.huaban.analysis.jieba.WordDictionary;
 import com.yfckevin.chatbot.advisors.MyVectorStoreChatMemoryAdvisor;
 import com.yfckevin.chatbot.advisors.TokenUsageLogAdvisor;
 import com.yfckevin.chatbot.bingBao.entity.Inventory;
@@ -8,6 +10,7 @@ import com.yfckevin.chatbot.exception.ResultStatus;
 import com.yfckevin.chatbot.message.dto.ChatMessageDTO;
 import com.yfckevin.chatbot.utils.ChatUtil;
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -24,11 +27,14 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.yfckevin.chatbot.GlobalConstants.*;
 
+@Slf4j
 @RestController
 @RequestMapping("/ai/bingBao/product")
 public class ProductController {
@@ -75,8 +81,13 @@ public class ProductController {
         final String chatChannel = dto.getChatChannel();
         final String memberId = dto.getMemberId();
         final String query = dto.getQuery();
+        log.info("user ask query: " + query);
 
-        ResultStatus resultStatus = new ResultStatus();
+        Path path = Paths.get("jieba/lang/dict.txt.big");
+        WordDictionary.getInstance().loadUserDict(path);
+        JiebaSegmenter segmenter = new JiebaSegmenter();
+        String segmentedQuery = String.join(",", segmenter.sentenceProcess(query));
+        log.info("切詞器完成後的語句：" + segmentedQuery);
 
         Filter.Expression filterProjectType = new Filter.Expression(
                 Filter.ExpressionType.EQ,
@@ -84,12 +95,12 @@ public class ProductController {
                 new Filter.Value(BING_BAO_PRODUCT_METADATA_TYPE)
         );
 
-        SearchRequest request = SearchRequest.query(query)
+        SearchRequest request = SearchRequest.query(segmentedQuery)
                 .withTopK(10)  // 可選，設置回傳的資料數量
                 .withFilterExpression(filterProjectType);
 
         List<Document> results = vectorStore.similaritySearch(request);
-        System.out.println("近似搜索查詢到的所有資料：" + results);
+        log.info("近似搜索查詢到的食材名與距離：" + results.stream().collect(Collectors.toMap(Document::getContent, doc -> doc.getMetadata().get("distance"))));
 
         results = results.stream()
                 .filter(doc -> {
@@ -97,7 +108,7 @@ public class ProductController {
                     return distance != null && distance < 0.3;
                 })
                 .toList();
-        System.out.println("distance優化過的資料：" + results);
+        log.info("distance優化過的食材名與距離：" + results.stream().collect(Collectors.toMap(Document::getContent, doc -> doc.getMetadata().get("distance"))));
 
         if (results.size() == 0) return;
 
@@ -115,15 +126,16 @@ public class ProductController {
                         productInfos.append(productInfo).append("\n");
                     });
         }
+        log.info("產品和庫存資訊：{}", productInfos);
 
         // 組裝chatId
         String chatId = BING_BAO_PROJECT_NAME + "_" + memberId + "_" + chatChannel;
 
         final String content = chatClient.prompt()
-                .advisors(new MyVectorStoreChatMemoryAdvisor(vectorStore, chatId, 20), new TokenUsageLogAdvisor())
+                .advisors(new MyVectorStoreChatMemoryAdvisor(vectorStore, chatId, 1), new TokenUsageLogAdvisor())
                 .advisors(context -> {
                     context.param("chatId", chatId);
-                    context.param("lastN", 20);
+                    context.param("lastN", 1);
                 })
                 .system(productInfos.toString().trim())
                 .user(query)
@@ -157,29 +169,29 @@ public class ProductController {
             }
         });
 
-        String validDetails = valid.entrySet().stream()
+        String validDetails = valid.isEmpty() ? "" : valid.entrySet().stream()
                 .map(entry -> String.format("在%s有%s個", entry.getKey(), entry.getValue()))
                 .collect(Collectors.joining("; "));
-        String validAndUsedDetails = validAndUsed.entrySet().stream()
+        String validAndUsedDetails = validAndUsed.isEmpty() ? "" : validAndUsed.entrySet().stream()
                 .map(entry -> String.format("在%s有%s個", entry.getKey(), entry.getValue()))
                 .collect(Collectors.joining("; "));
-        String expiredDetails = expired.entrySet().stream()
+        String expiredDetails = expired.isEmpty() ? "" : expired.entrySet().stream()
                 .map(entry -> String.format("在%s有%s個", entry.getKey(), entry.getValue()))
                 .collect(Collectors.joining("; "));
-        String expiredAndUsedDetails = expiredAndUsed.entrySet().stream()
+        String expiredAndUsedDetails = expiredAndUsed.isEmpty() ? "" : expiredAndUsed.entrySet().stream()
                 .map(entry -> String.format("在%s有%s個", entry.getKey(), entry.getValue()))
                 .collect(Collectors.joining("; "));
-        String deletedDetails = deleted.entrySet().stream()
+        String deletedDetails = deleted.isEmpty() ? "" : deleted.entrySet().stream()
                 .map(entry -> String.format("在%s有%s個", entry.getKey(), entry.getValue()))
                 .collect(Collectors.joining("; "));
 
-        return String.format("以下分別是該食材庫存的存放位置以及數量：在有效期限內的資料是%s，在有效期限內且用完的資料是%s，過期的資料是%s，過期且用完的資料是%s，刪除的資料是%s",
-                validDetails,
-                validAndUsedDetails,
-                expiredDetails,
-                expiredAndUsedDetails,
-                deletedDetails
-        );
+        return String.format("以下分別是該食材庫存的存放位置以及數量：%s%s%s%s%s",
+                validDetails.isEmpty() ? "" : "在有效期限內的資料是" + validDetails,
+                validAndUsedDetails.isEmpty() ? "" : "在有效期限內且用完的資料是" + validAndUsedDetails,
+                expiredDetails.isEmpty() ? "" : "過期的資料是" + expiredDetails,
+                expiredAndUsedDetails.isEmpty() ? "" : "過期且用完的資料是" + expiredAndUsedDetails,
+                deletedDetails.isEmpty() ? "" : "刪除的資料是" + deletedDetails
+        ).replaceAll("(?<=\\w) (?=\\w)", "");
     }
 
     private String getCondition(Inventory inventory) {

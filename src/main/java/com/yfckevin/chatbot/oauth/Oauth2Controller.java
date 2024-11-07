@@ -3,7 +3,9 @@ package com.yfckevin.chatbot.oauth;
 import com.yfckevin.chatbot.ConfigProperties;
 import com.yfckevin.chatbot.entity.Member;
 import com.yfckevin.chatbot.service.MemberService;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.http.*;
 import org.springframework.stereotype.Controller;
@@ -14,6 +16,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.Map;
 import java.util.Optional;
 
@@ -34,9 +39,9 @@ public class Oauth2Controller {
     public String handleOAuth2Callback(
             @RequestParam("code") String code,
             @RequestParam("state") String state,
-            HttpSession session,
-            Model model
-    ) {
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) throws IOException {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
@@ -84,8 +89,19 @@ public class Oauth2Controller {
         } else {
             member = memberOpt.get();
         }
-        session.setAttribute("member", member);
-        return "redirect:" + configProperties.getGlobalDomain() + "badminton-chat.html";
+        Cookie memberCookie = new Cookie("MEMBER_ID", URLEncoder.encode(member.getId(), "UTF-8"));
+        memberCookie.setMaxAge(24 * 60 * 60);
+        memberCookie.setPath("/");
+        response.addCookie(memberCookie);
+
+        String projectName = (String) request.getSession().getAttribute("project");
+        System.out.println("projectName = " + projectName);
+        switch (projectName) {
+            case "badminton" -> response.sendRedirect(configProperties.getGlobalDomain() + "badminton-chat.html");
+            case "bingBao" -> response.sendRedirect(configProperties.getGlobalDomain() + "bing-bao-chat.html");
+        }
+
+        return "";
     }
 
 
@@ -97,19 +113,15 @@ public class Oauth2Controller {
      * @return
      */
     @GetMapping("/login")
-    public String login(@RequestParam("type") String type, @RequestParam("project") String project, HttpServletRequest request) {
+    public String login(@RequestParam("type") String type, @RequestParam("project") String project, HttpServletRequest request, HttpServletResponse response) throws IOException {
         System.out.println("project = " + project);
         // 將 projectName 存入 session
         HttpSession session = request.getSession();
         session.setAttribute("project", project);
 
         switch (type) {
-            case "google" -> {
-                return "redirect:/oauth2/authorization/google?project=" + project;
-            }
-            case "line" -> {
-                return "redirect:/oauth2/authorization/line?project=" + project;
-            }
+            case "google" -> response.sendRedirect(configProperties.getGlobalDomain() + "oauth2/authorization/google?project=" + project);
+            case "line" -> response.sendRedirect(configProperties.getGlobalDomain() + "oauth2/authorization/line?project=" + project);
         }
 
         return "";

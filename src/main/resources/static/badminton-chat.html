@@ -2,7 +2,7 @@
 <html lang="en" xmlns:x-on="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="UTF-8">
-  <title>Title</title>
+  <title>羽球配對</title>
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css"/>
   <link href="https://fonts.googleapis.com/css?family=Raleway|Ubuntu&display=swap">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -43,11 +43,11 @@
       </template>
       <template x-if="memberId == undefined">
         <div id="chatbox" class="flex justify-center items-center p-4 h-80 overflow-y-auto bg-gray-200">
-          <a href="login?type=google&project=badminton" class="bg-black text-white py-2 px-4 rounded-md">
+          <a href="https://gurula.cc/chatbot/login?type=google&project=badminton" class="bg-black text-white py-2 px-4 rounded-md">
             Google登入
           </a>
           <br>
-          <a href="login?type=line&project=badminton" class="bg-black text-white py-2 px-4 rounded-md">
+          <a href="https://gurula.cc/chatbot/login?type=line&project=badminton" class="bg-black text-white py-2 px-4 rounded-md">
             Line登入
           </a>
         </div>
@@ -64,7 +64,6 @@
     function loadData() {
       return {
         chatData: [],
-        connectedMembers: [],
         channel: "badminton",
         chatChannel: "",  //C-xn2RFolD
         memberId: "", //member010
@@ -111,34 +110,37 @@
                   _this.chatChannel = response.data;
                   console.log(_this.chatChannel);
                   _this.loadChatHistory();
+                  _this.initializeWebSocketConnection(event);
                 } else {
                   return;
                 }
               },
             });
+          } else {
+            this.initializeWebSocketConnection(event);
           }
-
-          // 檢查是否已經有連接
-          if (this.connectedMembers[this.memberId]) {
-            console.log('用戶 ' + this.memberId + ' 已經連接，無需重複連接');
-            return; // 已經連接，直接返回
-          }
-
+          event.preventDefault();
+        },
+        initializeWebSocketConnection(event) {
           if (this.memberId) {
             var socket = new SockJS('chatroom');
             stompClient = Stomp.over(socket);
 
-            stompClient.connect({}, function (frame) {
+            stompClient.heartbeat.outgoing = 3000; // 每 3 秒發送一次心跳
+            stompClient.heartbeat.incoming = 3000; // 每 3 秒接收心跳
+
+            stompClient.connect({}, (frame) => {
               console.log('連接成功: ' + frame);
-              _this.connectedMembers[_this.memberId] = true; // 設定會員為已連接
-              _this.onConnected();
-            }, function (error) {
+              this.onConnected();
+            }, (error) => {
               console.error('連接失敗: ' + error);
+              setTimeout(() => { // 重試連接
+                this.initializeWebSocketConnection(event);
+              }, 500); // 0.5秒後重試
             });
           } else {
             popHint();
           }
-          event.preventDefault();
         },
         onConnected (){
           // 訂閱
@@ -176,7 +178,6 @@
           if (stompClient) {
             stompClient.disconnect(function() {
               console.log('斷開連接成功');
-              delete _this.connectedMembers[_this.memberId]; // 斷開連接時移除Member
             });
           }
         },

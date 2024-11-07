@@ -74,7 +74,7 @@ public class InventoryController {
         final String chatChannel = dto.getChatChannel();
         // 組裝chatId
         String chatId = BING_BAO_PROJECT_NAME + "_" + memberId + "_" + chatChannel;
-        System.out.println("chatId = " + chatId);
+        log.info("chatId = " + chatId);
 
         List<ChatMemory> inventoryList = messageService.findInventoryByType(BING_BAO_INVENTORY_METADATA_TYPE);
         final List<MessageText> messageInventoryList = inventoryList.stream()
@@ -91,7 +91,7 @@ public class InventoryController {
         if (StringUtils.isBlank(inventoryData)) return "查無資料";
 
         inventoryData = String.format("以下是食材庫存資料：\n%s", inventoryData);
-        System.out.println("庫存資料 = " + inventoryData);
+        log.info("庫存資料 = " + inventoryData);
 
         return chatClient.prompt()
                 .advisors(new MyVectorStoreChatMemoryAdvisor(vectorStore, chatId, 20), new TokenUsageLogAdvisor())
