@@ -8,46 +8,41 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body x-data="loadData()" x-init="init()">
-  <div class="fixed bottom-0 right-0 mb-4 mr-4">
-    <button x-on:click="connect($event)" id="open-chat" class="bg-black text-white rounded-full hover:bg-gray-800 transition duration-300 flex items-center justify-center w-16 h-16">
-      <i class="fas fa-comments text-xl"></i>
+  <div class="position-fixed bottom-0 end-0 mb-4 me-4">
+    <button x-on:click="connect($event)" id="open-chat" class="btn btn-dark rounded-circle d-flex align-items-center justify-content-center p-3" style="width: 60px; height: 60px;">
+      <i class="fas fa-comments text-white fs-3"></i>
     </button>
   </div>
-  <div id="chat-container" class="hidden fixed bottom-[6rem] right-4 w-96">
-    <div class="bg-white shadow-md rounded-lg max-w-lg w-full">
-      <div class="p-4 border-b bg-black text-white rounded-t-lg flex justify-between items-center">
-        <p class="text-lg font-semibold">冰寶小助手</p>
-        <button x-on:click="disconnect()" id="close-chat" class="text-gray-300 hover:text-gray-400 focus:outline-none focus:text-gray-400">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-          </svg>
-        </button>
+  <div id="chat-container" class="d-none position-fixed bottom-0 end-0 me-4" style="width: 24rem; margin-bottom:6rem">
+    <div class="card shadow-lg">
+      <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+        <h6 class="mb-2 mt-2">冰寶小助手</h6>
+        <button x-on:click="disconnect()" id="close-chat" class="btn-close btn-close-white" aria-label="Close"></button>
       </div>
       <template x-if="memberId != undefined">
-        <div id="chatbox" class="p-4 h-80 overflow-y-auto">
+        <div id="chatbox" class="card-body overflow-auto" style="height: 20rem;">
           <!-- Chat messages will be displayed here -->
           <template x-for="(chat, index) in chatData" :key="index">
-            <div :class="index % 2 === 0 ? 'text-right' : 'text-left'" class="mb-2">
-              <!-- 偶數位置的訊息使用藍色背景 -->
+            <div :class="index % 2 === 0 ? 'text-end' : 'text-start'" class="mb-2">
               <p x-html="chat.text"
-                 :class="index % 2 === 0 ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'"
-                 class="rounded-lg py-2 px-4 inline-block">
+                 :class="index % 2 === 0 ? 'bg-primary text-white' : 'text-black'"
+                 class="rounded-3 py-2 px-3 d-inline-block"
+                 :style="index % 2 !== 0 ? 'background-color: var(--bs-gray-300); margin-bottom: 0rem;' : 'margin-bottom: 0rem;'">
               </p>
             </div>
           </template>
         </div>
-        <div class="p-4 border-t flex">
-          <textarea id="userText" x-model="userText" placeholder="請輸入訊息" class="w-full px-3 py-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-          <button id="sendBtn" x-on:click="sendMessage($event)" class="bg-black text-white px-4 py-2 rounded-r-md hover:bg-blue-600 transition duration-300"><i class="far fa-paper-plane"></i></button>
+        <div class="card-footer d-flex">
+          <textarea id="userText" x-model="userText" placeholder="請輸入訊息" class="form-control me-2"></textarea>
+          <button id="sendBtn" x-on:click="sendMessage($event)" class="btn btn-dark"><i class="far fa-paper-plane"></i></button>
         </div>
       </template>
       <template x-if="memberId == undefined">
-        <div id="chatbox" class="flex justify-center items-center p-4 h-80 overflow-y-auto bg-gray-200">
-          <a href="https://gurula.cc/chatbot/login?type=google&project=badminton" class="bg-black text-white py-2 px-4 rounded-md">
+        <div id="chatbox" class="d-flex justify-content-center align-items-center card-body bg-light" style="height: 20rem;">
+          <a href="https://gurula.cc/chatbot/login?type=google&project=bingBao" class="btn btn-dark me-2">
             Google登入
           </a>
-          <br>
-          <a href="https://gurula.cc/chatbot/login?type=line&project=badminton" class="bg-black text-white py-2 px-4 rounded-md">
+          <a href="https://gurula.cc/chatbot/login?type=line&project=bingBao" class="btn btn-dark">
             Line登入
           </a>
         </div>
@@ -59,6 +54,8 @@
   <script src="js/marked.min.js"></script>
   <script src="js/sockjs.min.js"></script>
   <script src="js/stomp.min.js"></script>
+  <script src="js/bootstrap.bundle.min.js"></script>
+  <script src="js/bootstrap.min.js"></script>
   <script>
 
     function loadData() {
@@ -77,11 +74,11 @@
           console.log(this.memberId);
 
           let isChatboxOpen = false; // 預設關閉
-          $("#chat-container").addClass("hidden");
+          $("#chat-container").addClass("d-none");
 
           // 切換 chatbox
           function toggleChatbox() {
-            $("#chat-container").toggleClass("hidden");
+            $("#chat-container").toggleClass("d-none");
             isChatboxOpen = !isChatboxOpen;
           }
 
@@ -134,9 +131,7 @@
               this.onConnected();
             }, (error) => {
               console.error('連接失敗: ' + error);
-              setTimeout(() => { // 重試連接
-                this.initializeWebSocketConnection(event);
-              }, 500); // 0.5秒後重試
+              alert('聊天室閒置過久，請重新連線！')
             });
           } else {
             popHint();
