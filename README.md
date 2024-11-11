@@ -38,3 +38,4 @@
   - [Bootstrap](https://getbootstrap.com)
   - [Jquery](https://jquery.com)
   - [fontawesome](https://fontawesome.com/)
+  - [jieba](https://github.com/fxsjy/jieba)
