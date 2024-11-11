@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:x-on="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="UTF-8">
+    <title>羽球配對</title>
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css"/>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway|Ubuntu&display=swap">
+    <link rel="stylesheet" href="css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="css/style.css"/>
+<!--    <script src="https://cdn.tailwindcss.com"></script>-->
+</head>
+<body x-data="loadData()" x-init="init()">
+    <div class="position-fixed bottom-0 end-0 mb-4 me-4">
+        <button x-on:click="connect($event)" id="open-chat" class="btn btn-dark rounded-circle d-flex align-items-center justify-content-center p-3" style="width: 60px; height: 60px;">
+            <i class="fas fa-comments text-white fs-3"></i>
+        </button>
+    </div>
+    <div id="chat-container" class="d-none position-fixed bottom-0 end-0 me-4" style="width: 24rem; margin-bottom:6rem">
+        <div class="card shadow-lg">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-2 mt-2">羽球小幫手</h6>
+                <button x-on:click="disconnect()" id="close-chat" class="btn-close btn-close-white" aria-label="Close"></button>
+            </div>
+            <template x-if="memberId != undefined">
+                <div id="chatbox" class="card-body overflow-auto" style="height: 20rem;">
+                    <!-- Chat messages will be displayed here -->
+                    <template x-for="(chat, index) in chatData" :key="index">
+                        <div :class="index % 2 === 0 ? 'text-end' : 'text-start'" class="mb-2">
+                            <p x-html="chat.text"
+                               :class="index % 2 === 0 ? 'bg-primary text-white' : 'text-black'"
+                               class="rounded-3 py-2 px-3 d-inline-block"
+                               :style="index % 2 !== 0 ? 'background-color: var(--bs-gray-300); margin-bottom: 0rem;' : 'margin-bottom: 0rem;'">
+                            </p>
+                        </div>
+                    </template>
+
+                    <template x-if="isLoading">
+                        <div class="text-start mb-2">
+                            <p class="loading-dots bg-light text-secondary rounded-3 py-2 px-3 d-inline-block"></p>
+                        </div>
+                    </template>
+                </div>
+                <div class="card-footer d-flex">
+                    <textarea id="userText" x-model="userText" placeholder="請輸入訊息" class="form-control me-2"></textarea>
+                    <button id="sendBtn" x-on:click="sendMessage($event)" class="btn btn-dark"><i class="far fa-paper-plane"></i></button>
+                </div>
+            </template>
+        </div>
+    </div>
+    <script src="js/alpine.2.8.2.min.js"></script>
+    <script src="js/jquery.min.js"></script>
+    <script src="js/marked.min.js"></script>
+    <script src="js/sockjs.min.js"></script>
+    <script src="js/stomp.min.js"></script>
+    <script src="js/bootstrap.bundle.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+<script>
+
+    function loadData() {
+      return {
+        chatData: [],
+        channel: "badminton",
+        memberId: "test",
+        chatChannel: "",
+        userText: "",
+        isLoading: false,
+
+        init() {
+          let _this = this;
+
+          let isChatboxOpen = false; // 預設關閉
+          $("#chat-container").addClass("d-none");
+
+          // 切換 chatbox
+          function toggleChatbox() {
+            $("#chat-container").toggleClass("d-none");
+            isChatboxOpen = !isChatboxOpen;
+          }
+
+          // 綁定開啟/關閉按鈕事件
+          $("#open-chat").on("click", toggleChatbox);
+          $("#close-chat").on("click", toggleChatbox);
+
+        },
+        scrollToBottom (){
+          let chatbox = $("#chatbox")[0];
+          $("#chatbox").scrollTop(chatbox.scrollHeight);
+        },
+        connect(event) {
+          let _this = this;
+          if(this.chatChannel == "") {
+            $.ajax({
+              url: "ai/getChatChannel/" + this.channel + "/" + this.memberId,
+              type: "get",
+              dataType: "json",
+              contentType: "application/json; charset=utf-8",
+              success: function (response) {
+                if (response.code == "C000"){
+                  _this.chatChannel = response.data;
+                  console.log(_this.chatChannel);
+                  _this.loadChatHistory();
+                  _this.initializeWebSocketConnection(event);
+                } else {
+                  return;
+                }
+              },
+            });
+          } else {
+            this.initializeWebSocketConnection(event);
+          }
+          event.preventDefault();
+        },
+        initializeWebSocketConnection(event) {
+          if (this.memberId) {
+            var socket = new SockJS('chatroom');
+            stompClient = Stomp.over(socket);
+
+            stompClient.heartbeat.outgoing = 3000; // 每 3 秒發送一次心跳
+            stompClient.heartbeat.incoming = 3000; // 每 3 秒接收心跳
+
+            stompClient.connect({}, (frame) => {
+              console.log('連接成功: ' + frame);
+              this.onConnected();
+            }, (error) => {
+              console.error('連接失敗: ' + error);
+              alert('聊天室閒置過久，請重新連線！')
+            });
+          } else {
+            popHint();
+          }
+        },
+        onConnected (){
+          // 訂閱
+          stompClient.subscribe(`/${this.channel}/${this.memberId}/${this.chatChannel}`, this.onMessageReceived.bind(this));
+
+          console.log("已成功訂閱聊天頻道");
+        },
+        sendMessage(event) {
+          if (stompClient) {
+            if (this.userText.trim() === '') return;
+
+            this.chatData.push({ text: this.userText });
+            this.isLoading = true;  // 發送後顯示 loading
+            let chatMessage = {
+              memberId: this.memberId,
+              query: this.userText,
+              chatChannel: this.chatChannel
+            };
+
+            stompClient.send("/ai/badminton/chat", {}, JSON.stringify(chatMessage));
+            this.userText = '';
+          }
+          event.preventDefault();
+        },
+        onMessageReceived(payload) {
+          this.isLoading = false;  // 接收後隱藏 loading
+          console.log("回覆訊息：" + payload.body)
+          this.chatData.push({ text: marked.parse(payload.body) });
+        },
+        disconnect() {
+          let _this = this;
+          if (stompClient) {
+            stompClient.disconnect(function() {
+              console.log('斷開連接成功');
+            });
+          }
+        },
+        getCookie(name) {
+          const value = `; ${document.cookie}`;
+          const parts = value.split(`; ${name}=`);
+          if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
+        },
+        loadChatHistory() {
+            let _this = this;
+            let data = {
+                projectName: 'BadmintonPairing',
+                memberId: this.memberId,
+                chatChannel: this.chatChannel
+            };
+
+            $.ajax({
+                url: "ai/chatHistory",
+                type: "post",
+                dataType: "json",
+                data: JSON.stringify(data),
+                contentType: "application/json; charset=utf-8",
+                success: function (response) {
+                    _this.chatData = response;
+                    _this.chatData = _this.chatData.map(chat => {
+                        return {
+                            ...chat,
+                            text: marked.parse(chat.text) // 將 Markdown 轉換為 HTML
+                        };
+                    });
+                    console.log(_this.chatData);
+                    _this.scrollToBottom();
+                },
+            });
+        },
+      }
+    }
+
+  </script>
+</body>
+</html>
