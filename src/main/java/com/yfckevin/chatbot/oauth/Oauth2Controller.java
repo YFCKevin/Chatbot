@@ -113,7 +113,7 @@ public class Oauth2Controller {
      * @return
      */
     @GetMapping("/login")
-    public String login(@RequestParam("type") String type, @RequestParam("project") String project, HttpServletRequest request, HttpServletResponse response) throws IOException {
+    public void login(@RequestParam("type") String type, @RequestParam("project") String project, HttpServletRequest request, HttpServletResponse response) throws IOException {
         System.out.println("project = " + project);
         // 將 projectName 存入 session
         HttpSession session = request.getSession();
@@ -124,6 +124,5 @@ public class Oauth2Controller {
             case "line" -> response.sendRedirect(configProperties.getGlobalDomain() + "oauth2/authorization/line?project=" + project);
         }
 
-        return "";
     }
 }

@@ -2,10 +2,12 @@
 <html lang="en" xmlns:x-on="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="UTF-8">
-  <title>冰寶</title>
+  <title>羽球配對</title>
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css"/>
   <link href="https://fonts.googleapis.com/css?family=Raleway|Ubuntu&display=swap">
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/bootstrap.min.css"/>
+  <!--  <script src="https://cdn.tailwindcss.com"></script>-->
+
 </head>
 <body x-data="loadData()" x-init="init()">
   <div class="position-fixed bottom-0 end-0 mb-4 me-4">
@@ -13,7 +15,8 @@
       <i class="fas fa-comments text-white fs-3"></i>
     </button>
   </div>
-  <div id="chat-container" class="d-none position-fixed bottom-0 end-0 me-4" style="width: 24rem; margin-bottom:6rem">
+
+  <div id="chat-container" class="d-none position-fixed bottom-0 end-0 me-4">
     <div class="card shadow-lg">
       <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
         <h6 class="mb-2 mt-2">冰寶小助手</h6>
@@ -25,9 +28,8 @@
           <template x-for="(chat, index) in chatData" :key="index">
             <div :class="index % 2 === 0 ? 'text-end' : 'text-start'" class="mb-2">
               <p x-html="chat.text"
-                 :class="index % 2 === 0 ? 'bg-primary text-white' : 'text-black'"
-                 class="rounded-3 py-2 px-3 d-inline-block"
-                 :style="index % 2 !== 0 ? 'background-color: var(--bs-gray-300); margin-bottom: 0rem;' : 'margin-bottom: 0rem;'">
+                 :class="index % 2 === 0 ? 'bg-primary text-white' : 'bg-light text-dark'"
+                 class="rounded-3 py-2 px-3 d-inline-block">
               </p>
             </div>
           </template>
@@ -38,11 +40,11 @@
         </div>
       </template>
       <template x-if="memberId == undefined">
-        <div id="chatbox" class="d-flex justify-content-center align-items-center card-body bg-light" style="height: 20rem;">
-          <a href="https://gurula.cc/chatbot/login?type=google&project=bingBao" class="btn btn-dark me-2">
+        <div id="chatbox" class="d-flex justify-content-center align-items-center card-body bg-light">
+          <a href="login?type=google&project=bingBao" class="btn btn-dark me-2">
             Google登入
           </a>
-          <a href="https://gurula.cc/chatbot/login?type=line&project=bingBao" class="btn btn-dark">
+          <a href="login?type=line&project=bingBao" class="btn btn-dark">
             Line登入
           </a>
         </div>
@@ -182,31 +184,31 @@
           if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
         },
         loadChatHistory() {
-            let _this = this;
-            let data = {
-                projectName: 'BingBao',
-                memberId: this.memberId,
-                chatChannel: this.chatChannel
-            };
+          let _this = this;
+          let data = {
+            projectName: 'BingBao',
+            memberId: this.memberId,
+            chatChannel: this.chatChannel
+          };
 
-            $.ajax({
-                url: "ai/chatHistory",
-                type: "post",
-                dataType: "json",
-                data: JSON.stringify(data),
-                contentType: "application/json; charset=utf-8",
-                success: function (response) {
-                    _this.chatData = response;
-                    _this.chatData = _this.chatData.map(chat => {
-                        return {
-                            ...chat,
-                            text: marked.parse(chat.text) // 將 Markdown 轉換為 HTML
-                        };
-                    });
-                    console.log(_this.chatData);
-                    _this.scrollToBottom();
-                },
-            });
+          $.ajax({
+            url: "ai/chatHistory",
+            type: "post",
+            dataType: "json",
+            data: JSON.stringify(data),
+            contentType: "application/json; charset=utf-8",
+            success: function (response) {
+              _this.chatData = response;
+              _this.chatData = _this.chatData.map(chat => {
+                return {
+                  ...chat,
+                  text: marked.parse(chat.text) // 將 Markdown 轉換為 HTML
+                };
+              });
+              console.log(_this.chatData);
+              _this.scrollToBottom();
+            },
+          });
         },
       }
     }

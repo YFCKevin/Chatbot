@@ -23,7 +23,7 @@
         <button x-on:click="disconnect()" id="close-chat" class="btn-close btn-close-white" aria-label="Close"></button>
       </div>
       <template x-if="memberId != undefined">
-        <div id="chatbox" class="card-body overflow-auto">
+        <div id="chatbox" class="card-body overflow-auto" style="height: 20rem;">
           <!-- Chat messages will be displayed here -->
           <template x-for="(chat, index) in chatData" :key="index">
             <div :class="index % 2 === 0 ? 'text-end' : 'text-start'" class="mb-2">
@@ -41,10 +41,10 @@
       </template>
       <template x-if="memberId == undefined">
         <div id="chatbox" class="d-flex justify-content-center align-items-center card-body bg-light">
-          <a href="https://gurula.cc/chatbot/login?type=google&project=badminton" class="btn btn-dark me-2">
+          <a href="login?type=google&project=badminton" class="btn btn-dark me-2">
             Google登入
           </a>
-          <a href="https://gurula.cc/chatbot/login?type=line&project=badminton" class="btn btn-dark">
+          <a href="login?type=line&project=badminton" class="btn btn-dark">
             Line登入
           </a>
         </div>
@@ -185,31 +185,31 @@
           if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
         },
         loadChatHistory() {
-            let _this = this;
-            let data = {
-                projectName: 'BadmintonPairing',
-                memberId: this.memberId,
-                chatChannel: this.chatChannel
-            };
+          let _this = this;
+          let data = {
+            projectName: 'BadmintonPairing',
+            memberId: this.memberId,
+            chatChannel: this.chatChannel
+          };
 
-            $.ajax({
-                url: "ai/chatHistory",
-                type: "post",
-                dataType: "json",
-                data: JSON.stringify(data),
-                contentType: "application/json; charset=utf-8",
-                success: function (response) {
-                    _this.chatData = response;
-                    _this.chatData = _this.chatData.map(chat => {
-                        return {
-                            ...chat,
-                            text: marked.parse(chat.text) // 將 Markdown 轉換為 HTML
-                        };
-                    });
-                    console.log(_this.chatData);
-                    _this.scrollToBottom();
-                },
-            });
+          $.ajax({
+            url: "ai/chatHistory",
+            type: "post",
+            dataType: "json",
+            data: JSON.stringify(data),
+            contentType: "application/json; charset=utf-8",
+            success: function (response) {
+              _this.chatData = response;
+              _this.chatData = _this.chatData.map(chat => {
+                return {
+                  ...chat,
+                  text: marked.parse(chat.text) // 將 Markdown 轉換為 HTML
+                };
+              });
+              console.log(_this.chatData);
+              _this.scrollToBottom();
+            },
+          });
         },
       }
     }
