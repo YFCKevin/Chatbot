@@ -88,6 +88,7 @@ logging:
     org.neo4j: DEBUG
 
 config:
-  badmintonDomain: https://gurula.cc/badminton/
+  badmintonDomain: https://localhost:8999/badminton/
+  bingBaoDomain: https://localhost:8098/bingBao/
   globalDomain: http://localhost:8999/chatbot/
 

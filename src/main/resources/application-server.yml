@@ -89,5 +89,6 @@ logging:
 
 config:
   badmintonDomain: https://gurula.cc/badminton/
+  bingBaoDomain: https://gurula.cc/bingBao/
   globalDomain: https://gurula.cc/chatbot/
 

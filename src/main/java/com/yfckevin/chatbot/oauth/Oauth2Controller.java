@@ -113,11 +113,12 @@ public class Oauth2Controller {
      * @return
      */
     @GetMapping("/login")
-    public void login(@RequestParam("type") String type, @RequestParam("project") String project, HttpServletRequest request, HttpServletResponse response) throws IOException {
+    public void login(@RequestParam("type") String type, @RequestParam("project") String project, @RequestParam(defaultValue = "", value = "page") String page, HttpServletRequest request, HttpServletResponse response) throws IOException {
         System.out.println("project = " + project);
         // 將 projectName 存入 session
         HttpSession session = request.getSession();
         session.setAttribute("project", project);
+        session.setAttribute("page", page);
 
         switch (type) {
             case "google" -> response.sendRedirect(configProperties.getGlobalDomain() + "oauth2/authorization/google?project=" + project);
