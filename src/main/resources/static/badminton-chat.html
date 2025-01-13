@@ -6,6 +6,7 @@
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css"/>
   <link href="https://fonts.googleapis.com/css?family=Raleway|Ubuntu&display=swap">
   <link rel="stylesheet" href="css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="css/audio-to-text.css"/>
 <!--  <script src="https://cdn.tailwindcss.com"></script>-->
 
 </head>
@@ -35,8 +36,13 @@
           </template>
         </div>
         <div class="card-footer d-flex">
-          <textarea id="userText" x-model="userText" placeholder="請輸入訊息" class="form-control me-2"></textarea>
-          <button id="sendBtn" x-on:click="sendMessage($event)" class="btn btn-dark"><i class="far fa-paper-plane"></i></button>
+            <div class="card-footer d-flex align-items-center">
+                <div class="textarea-container d-flex align-items-center me-2">
+                    <textarea id="userText" x-model="userText" placeholder="請輸入訊息" class="form-control flex-grow-1 me-2"></textarea>
+                    <i class="fas fa-microphone ms-2" id="microphone"></i>
+                </div>
+                <button id="sendBtn" x-on:click="sendMessage($event)" class="btn btn-dark ms-2"><i class="far fa-paper-plane"></i></button>
+            </div>
         </div>
       </template>
       <template x-if="memberId == undefined">
@@ -59,6 +65,7 @@
   <script src="js/stomp.min.js"></script>
   <script src="js/bootstrap.bundle.min.js"></script>
   <script src="js/bootstrap.min.js"></script>
+  <script src="js/audio-to-text.js"></script>
   <script>
 
     function loadData() {
