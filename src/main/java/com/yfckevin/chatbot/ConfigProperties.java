@@ -13,6 +13,8 @@ public class ConfigProperties {
     private String badmintonDomain;
     @Value("${config.bingBaoDomain}")
     private String bingBaoDomain;
+    @Value("${config.bingBaoTestDomain}")
+    private String bingBaoTestDomain;
     @Value("${spring.data.mongodb.uri}")
     private String mongoUri;
     @Value("${spring.redis.host}")
@@ -117,5 +119,13 @@ public class ConfigProperties {
 
     public void setBingBaoDomain(String bingBaoDomain) {
         this.bingBaoDomain = bingBaoDomain;
+    }
+
+    public String getBingBaoTestDomain() {
+        return bingBaoTestDomain;
+    }
+
+    public void setBingBaoTestDomain(String bingBaoTestDomain) {
+        this.bingBaoTestDomain = bingBaoTestDomain;
     }
 }

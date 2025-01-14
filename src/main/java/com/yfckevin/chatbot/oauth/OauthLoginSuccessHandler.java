@@ -63,6 +63,13 @@ public class OauthLoginSuccessHandler implements AuthenticationSuccessHandler {
                     response.sendRedirect(configProperties.getGlobalDomain() + "bing-bao-chat.html");
                 }
             }
+            case "bingBaoTest" -> {
+                if (StringUtils.isNotBlank(page)) {
+                    response.sendRedirect(configProperties.getBingBaoTestDomain() + page);
+                } else {
+                    response.sendRedirect(configProperties.getGlobalDomain() + "bing-bao-chat.html");
+                }
+            }
         }
     }
 

@@ -90,5 +90,6 @@ logging:
 config:
   badmintonDomain: https://localhost:8999/badminton/
   bingBaoDomain: https://localhost:8098/bingBao/
+  bingBaoTestDomain: https://localhost:8082/bingBaoTest/
   globalDomain: http://localhost:8999/chatbot/
 
