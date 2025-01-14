@@ -25,7 +25,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void configureMessageBroker(MessageBrokerRegistry brokerRegister) {
 
         // 啟用一個訊息代理並設定訊息發送目地的前綴路徑
-        brokerRegister.enableSimpleBroker("/badminton", "/bingBao", "/inkCloud")
+        brokerRegister.enableSimpleBroker("/badminton", "/bingBao", "/inkCloud", "/bingBaoTest")
                 .setTaskScheduler(heartBeatScheduler());
 
         // 設定導向至訊息處理器的前綴路徑
